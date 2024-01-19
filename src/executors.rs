@@ -8,25 +8,28 @@ use std::path::Path;
 
 use crate::config::{Config, print_usage};
 
+type OptionalResults = Option<Box<dyn Debug>>;
+type DynErr = Box<dyn Error>;
+
 pub trait BookMarkAction: Debug {
-    fn execute(&self, config: &Config) -> Result<(), Box<dyn Error>>;
+    fn execute(&self, config: &Config) -> Result<OptionalResults, DynErr>;
 }
 
 #[derive(Debug)]
 pub struct Save {}
 
 impl BookMarkAction for Save {
-    fn execute(&self, config: &Config) -> Result<(), Box<dyn Error>> {
+    fn execute(&self, config: &Config) -> Result<OptionalResults, DynErr> {
         let mut bookmarks = load_bookmarks(&config)?;
         bookmarks.insert((&config.bookmark as &str).to_string(), config.path.to_string_lossy().to_string());
         // let mut file= file.try_clone()?;
         write_bookmarks(&config, &bookmarks)?;
 
-        Ok(())
+        Ok(None)
     }
 }
 
-fn load_bookmarks(config: &Config) -> Result<HashMap<String, String>, Box<dyn Error>> {
+fn load_bookmarks(config: &Config) -> Result<HashMap<String, String>, DynErr> {
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -52,7 +55,7 @@ fn load_bookmarks(config: &Config) -> Result<HashMap<String, String>, Box<dyn Er
     Ok(contents)
 }
 
-fn write_bookmarks(config: &Config, contents: &HashMap<String, String>) -> Result<(), Box<dyn Error>> {
+fn write_bookmarks(config: &Config, contents: &HashMap<String, String>) -> Result<(), DynErr> {
     let file = OpenOptions::new()
         .write(true)
         .create(true)
@@ -70,9 +73,9 @@ fn write_bookmarks(config: &Config, contents: &HashMap<String, String>) -> Resul
 pub struct Help {}
 
 impl BookMarkAction for Help {
-    fn execute(&self, config: &Config) -> Result<(), Box<dyn Error>> {
+    fn execute(&self, config: &Config) -> Result<OptionalResults, DynErr> {
         print_usage(&config.program, &config.options);
-        Ok(())
+        Ok(None)
     }
 }
 
@@ -80,10 +83,10 @@ impl BookMarkAction for Help {
 pub struct List {}
 
 impl BookMarkAction for List {
-    fn execute(&self, config: &Config) -> Result<(), Box<dyn Error>> {
+    fn execute(&self, config: &Config) -> Result<OptionalResults, DynErr> {
         let bookmarks = load_bookmarks(&config)?;
-        println!("{:?}", bookmarks);
-        Ok(())
+        // println!("{:?}", bookmarks);
+        Ok(Some(Box::new(bookmarks)))
     }
 }
 
@@ -91,7 +94,7 @@ impl BookMarkAction for List {
 pub struct RemoveDB {}
 
 impl BookMarkAction for RemoveDB {
-    fn execute(&self, _config: &Config) -> Result<(), Box<dyn Error>> {
+    fn execute(&self, _config: &Config) -> Result<OptionalResults, DynErr> {
         todo!()
     }
 }
@@ -100,13 +103,10 @@ impl BookMarkAction for RemoveDB {
 pub struct ShowBookmark {}
 
 impl BookMarkAction for ShowBookmark {
-    fn execute(&self, config: &Config) -> Result<(), Box<dyn Error>> {
+    fn execute(&self, config: &Config) -> Result<OptionalResults, DynErr> {
         let bookmarks = load_bookmarks(&config)?;
-        if let Some(path) = bookmarks.get(&config.bookmark as &str) {
-            println!("{}", path);
-        }
-
-        Ok(())
+        let path = bookmarks.get(&config.bookmark as &str).unwrap().to_owned();
+        return Ok(Some(Box::new(path)));
     }
 }
 
@@ -114,13 +114,13 @@ impl BookMarkAction for ShowBookmark {
 pub struct DeleteBookmark {}
 
 impl BookMarkAction for DeleteBookmark {
-    fn execute(&self, config: &Config) -> Result<(), Box<dyn Error>> {
+    fn execute(&self, config: &Config) -> Result<OptionalResults, DynErr> {
         let mut bookmarks = load_bookmarks(&config)?;
         bookmarks.remove(&config.bookmark as &str);
         // let mut file= file.try_clone()?;
         write_bookmarks(&config, &bookmarks)?;
 
-        Ok(())
+        Ok(None)
     }
 }
 
